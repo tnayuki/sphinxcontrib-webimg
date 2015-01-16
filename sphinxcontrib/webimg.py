@@ -16,8 +16,12 @@ from hashlib import sha1
 from selenium import webdriver
 from sphinx.util.osutil import ensuredir
 
+driver = None
+
 class webimg(nodes.General, nodes.Inline, nodes.Element):
     def to_image(self, builder):
+        global driver
+
         if builder.format == 'html':
             reldir = "_images"
             outdir = os.path.join(builder.outdir, '_images')
@@ -36,10 +40,9 @@ class webimg(nodes.General, nodes.Inline, nodes.Element):
             path = os.path.join(outdir, filename)
             ensuredir(outdir)
 
-            driver = webdriver.Firefox()
+            if driver is None : driver = webdriver.Firefox()
             driver.get(url)
             driver.save_screenshot(path)
-            driver.quit()
         except Exception as exc:
             builder.warn('Fail to save screenshot: %s' % exc)
             return nodes.Text('')
@@ -73,7 +76,13 @@ def on_doctree_resolved(app, doctree, docname):
         node.replace_self(image_node)
 
 
+def on_build_finished(app, exception):
+    global driver
+    if not driver is None : driver.quit()
+
+
 def setup(app):
     app.add_node(webimg)
     app.add_directive('webimg', WebImg)
     app.connect('doctree-resolved', on_doctree_resolved)
+    app.connect('build-finished', on_build_finished)
