@@ -6,12 +6,15 @@
     screen shots from web pages.
 
 '''
+import os
+import sys
+import urllib
+import urlparse
 from docutils import nodes
 from docutils.parsers.rst.directives.images import Image
 from hashlib import sha1
 from selenium import webdriver
 from sphinx.util.osutil import ensuredir
-import os, sys, re, shutil
 
 class webimg(nodes.General, nodes.Inline, nodes.Element):
     def to_image(self, builder):
@@ -23,12 +26,18 @@ class webimg(nodes.General, nodes.Inline, nodes.Element):
             outdir = builder.outdir
 
         try:
-            filename = "webimg-%s.png" % sha1(self['uri']).hexdigest()
+            o = urlparse.urlparse(self['url'])
+            if o.scheme == '' and o.netloc == '':
+                url = 'file:' + urllib.pathname2url(os.path.abspath(o.path))
+            else:
+                url = self['url']
+
+            filename = "webimg-%s.png" % sha1(url).hexdigest()
             path = os.path.join(outdir, filename)
             ensuredir(outdir)
 
             driver = webdriver.Firefox()
-            driver.get(self['url'])
+            driver.get(url)
             driver.save_screenshot(path)
             driver.quit()
         except Exception as exc:
@@ -60,7 +69,6 @@ class WebImg(Image):
 
 def on_doctree_resolved(app, doctree, docname):
     for node in doctree.traverse(webimg):
-        print node
         image_node = node.to_image(app.builder)
         node.replace_self(image_node)
 
